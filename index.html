@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Módulo de Nómina</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Chart.js para las gráficas -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f4f8;
+        }
+        .modal-backdrop {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 40;
+            justify-content: center;
+            align-items: center;
+        }
+        .modal {
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        .progress-bar-bg {
+            background-color: #e5e7eb;
+        }
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            padding: 1rem 1.5rem;
+            border-radius: 0.5rem;
+            color: white;
+            opacity: 0;
+            transform: translateY(20px);
+            transition: opacity 0.3s, transform 0.3s;
+            z-index: 100;
+        }
+        .toast.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        .toast.success { background: linear-gradient(to right, #10b981, #34d399); }
+        .toast.error { background: linear-gradient(to right, #ef4444, #f87171); }
+        th, td {
+            padding: 12px 16px;
+        }
+        .card-shadow {
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+        .action-btn {
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+    </style>
+</head>
+<body class="p-4 sm:p-6 md:p-8">
+    <div class="max-w-7xl mx-auto">
+        <header class="flex flex-col sm:flex-row justify-between items-center mb-8">
+            <h1 class="text-3xl font-bold text-slate-800">Dashboard de Decisiones</h1>
+            <button id="addEmployeeBtn" class="mt-4 sm:mt-0 w-full sm:w-auto bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 text-white font-bold py-2 px-6 rounded-lg shadow-lg transition transform hover:scale-105 duration-300">
+                + Registrar Empleado
+            </button>
+        </header>
+
+        <!-- Dashboard -->
+        <section id="dashboard" class="mb-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div class="bg-white p-6 rounded-xl card-shadow flex flex-col justify-between">
+                <div>
+                    <div class="flex justify-between items-start">
+                        <h4 class="text-gray-500 font-medium mb-2">Total Empleados</h4>
+                        <div class="bg-cyan-100 p-3 rounded-full">
+                            <svg class="w-6 h-6 text-cyan-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+                        </div>
+                    </div>
+                    <p id="totalEmployees" class="text-4xl font-bold text-slate-900">0</p>
+                </div>
+            </div>
+            <div class="bg-white p-6 rounded-xl card-shadow flex flex-col justify-between">
+                <div>
+                    <div class="flex justify-between items-start">
+                        <h4 class="text-gray-500 font-medium mb-2">Pendiente (Quincena Actual)</h4>
+                        <div class="bg-rose-100 p-3 rounded-full">
+                            <svg class="w-6 h-6 text-rose-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v.01M12 6v-1m0-1V4m0 2.01M18 10a6 6 0 11-12 0 6 6 0 0112 0z"></path></svg>
+                        </div>
+                    </div>
+                    <p id="pendingQuincena" class="text-4xl font-bold text-slate-900 break-words">$0.00</p>
+                </div>
+            </div>
+            <div class="bg-white p-6 rounded-xl card-shadow flex flex-col justify-between">
+                <div>
+                    <div class="flex justify-between items-start">
+                        <h4 class="text-gray-500 font-medium mb-2">Nómina Anual Proyectada</h4>
+                        <div class="bg-amber-100 p-3 rounded-full">
+                            <svg class="w-6 h-6 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path></svg>
+                        </div>
+                    </div>
+                    <p id="projectedAnnualPayroll" class="text-4xl font-bold text-slate-900 break-words">$0.00</p>
+                </div>
+            </div>
+
+            <div class="bg-white p-6 rounded-xl card-shadow"><h4 class="text-gray-500 font-medium">Progreso Quincena Actual</h4><div class="w-full progress-bar-bg rounded-full h-4 mt-3"><div id="quincenaProgressFill" class="bg-gradient-to-r from-teal-400 to-emerald-500 h-4 rounded-full flex items-center justify-center transition-all duration-500 ease-out"><span id="quincenaProgressText" class="text-xs font-bold text-white">0%</span></div></div><p id="quincenaProgressDetails" class="text-sm text-gray-600 text-center mt-2">$0.00 / $0.00</p></div>
+            <div class="bg-white p-6 rounded-xl card-shadow"><h4 class="text-gray-500 font-medium">Progreso Mes Seleccionado</h4><div class="w-full progress-bar-bg rounded-full h-4 mt-3"><div id="monthlyProgressFill" class="bg-gradient-to-r from-sky-400 to-blue-500 h-4 rounded-full flex items-center justify-center transition-all duration-500 ease-out"><span id="monthlyProgressText" class="text-xs font-bold text-white">0%</span></div></div><p id="monthlyProgressDetails" class="text-sm text-gray-600 text-center mt-2">$0.00 / $0.00</p></div>
+            <div class="md:col-span-2 lg:col-span-3 bg-white p-6 rounded-xl card-shadow"><h4 class="text-gray-500 font-medium mb-2">Historial de Nómina</h4><canvas id="monthlyPayrollChart" style="max-height: 150px;"></canvas></div>
+        </section>
+        
+        <section class="mb-4 flex flex-col sm:flex-row gap-4"><div class="flex-grow"><label for="nameFilter" class="sr-only">Filtrar por nombre</label><input type="text" id="nameFilter" placeholder="Buscar empleado por nombre..." class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500"></div><div><label for="monthFilter" class="sr-only">Filtrar por mes</label><select id="monthFilter" class="w-full sm:w-auto px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500 bg-white"></select></div></section>
+
+        <!-- Tabla de Empleados -->
+        <main class="bg-white rounded-xl card-shadow overflow-x-auto"><table class="w-full text-sm text-left text-gray-500"><thead class="text-xs text-gray-700 uppercase bg-slate-50"><tr><th scope="col" class="px-6 py-3 rounded-tl-xl">Nombre</th><th scope="col" class="px-6 py-3">Puesto</th><th scope="col" class="px-6 py-3">Salario Quincenal</th><th scope="col" id="paidMonthHeader" class="px-6 py-3">Pagado este Mes</th><th scope="col" class="px-6 py-3">Progreso Anual</th><th scope="col" class="px-6 py-3 text-center rounded-tr-xl">Acciones</th></tr></thead><tbody id="employeeTableBody"></tbody></table><div id="loader" class="text-center py-10"><p class="text-gray-500">Cargando empleados...</p></div><div id="noEmployees" class="hidden text-center py-10 px-6"><p class="text-gray-600">Aún no hay empleados registrados.</p></div></main>
+    </div>
+
+    <!-- Modales -->
+    <div id="employeeModal" class="modal-backdrop"><div class="modal bg-white w-11/12 max-w-md p-6 rounded-lg shadow-xl"><form id="employeeForm"><h2 class="text-2xl font-semibold mb-4 text-gray-800">Registrar Empleado</h2><input type="hidden" id="employeeId"><div class="mb-4"><label for="employeeName" class="block text-gray-700 text-sm font-bold mb-2">Nombre Completo:</label><input type="text" id="employeeName" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-cyan-500" required></div><div class="mb-4"><label for="employeePosition" class="block text-gray-700 text-sm font-bold mb-2">Puesto:</label><input type="text" id="employeePosition" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-cyan-500" required></div><div class="mb-6"><label for="employeeSalary" class="block text-gray-700 text-sm font-bold mb-2">Salario por Quincena ($):</label><input type="number" id="employeeSalary" min="0" step="0.01" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-cyan-500" required></div><div class="flex items-center justify-end gap-3"><button type="button" class="cancel-btn bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-lg transition duration-300">Cancelar</button><button type="submit" class="bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 text-white font-bold py-2 px-4 rounded-lg transition duration-300">Guardar</button></div></form></div></div>
+    <div id="paymentModal" class="modal-backdrop"><div class="modal bg-white w-11/12 max-w-md p-6 rounded-lg shadow-xl"><form id="paymentForm"><h2 class="text-2xl font-semibold mb-4 text-gray-800">Registrar Pago a <span id="paymentEmployeeName" class="font-bold"></span></h2><input type="hidden" id="paymentEmployeeId"><div class="mb-4"><label for="paymentPeriod" class="block text-gray-700 text-sm font-bold mb-2">Quincena a Pagar:</label><select id="paymentPeriod" class="shadow border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-cyan-500" required></select></div><div class="mb-4"><label for="paymentAmount" class="block text-gray-700 text-sm font-bold mb-2">Monto a Pagar ($):</label><input type="number" id="paymentAmount" min="0" step="0.01" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-cyan-500" required></div><div class="mb-6"><label for="paymentProof" class="block text-gray-700 text-sm font-bold mb-2">Comprobante de Pago (PDF, Imagen):</label><input type="file" id="paymentProof" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-cyan-50 file:text-cyan-700 hover:file:bg-cyan-100" required accept="image/*,.pdf"></div><div class="flex items-center justify-end gap-3"><button type="button" class="cancel-btn bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-lg transition duration-300">Cancelar</button><button type="submit" id="submitPaymentBtn" class="bg-gradient-to-r from-emerald-500 to-green-500 hover:from-emerald-600 hover:to-green-600 text-white font-bold py-2 px-4 rounded-lg transition duration-300">Registrar Pago</button></div></form></div></div>
+    <div id="paymentHistoryModal" class="modal-backdrop"><div class="modal bg-white w-11/12 max-w-2xl p-6 rounded-lg shadow-xl"><h2 class="text-2xl font-semibold mb-4 text-gray-800">Historial de Pagos de <span id="historyEmployeeName" class="font-bold"></span></h2><div class="overflow-y-auto max-h-96"><table class="w-full text-sm text-left text-gray-500"><thead class="text-xs text-gray-700 uppercase bg-slate-50 sticky top-0"><tr><th scope="col" class="px-6 py-3">Periodo</th><th scope="col" class="px-6 py-3">Monto</th><th scope="col" class="px-6 py-3">Comprobante</th></tr></thead><tbody id="paymentHistoryBody"></tbody></table></div><div class="flex justify-end mt-4"><button type="button" class="cancel-btn bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-lg transition duration-300">Cerrar</button></div></div></div>
+    <div id="toast" class="toast"></div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, onSnapshot, query, getDocs, serverTimestamp, doc, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-storage.js";
+        
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
+        let app, db, auth, storage, userId;
+        let monthlyChart;
+        let allEmployees = [];
+        let filters = { name: '', month: 'current' };
+
+        // --- DOM References ---
+        const employeeTableBody = document.getElementById('employeeTableBody');
+        const loader = document.getElementById('loader');
+        const noEmployees = document.getElementById('noEmployees');
+        const addEmployeeBtn = document.getElementById('addEmployeeBtn');
+        const employeeModal = document.getElementById('employeeModal');
+        const employeeForm = document.getElementById('employeeForm');
+        const paymentModal = document.getElementById('paymentModal');
+        const paymentForm = document.getElementById('paymentForm');
+        const paymentHistoryModal = document.getElementById('paymentHistoryModal');
+        const toast = document.getElementById('toast');
+        const nameFilter = document.getElementById('nameFilter');
+        const monthFilter = document.getElementById('monthFilter');
+        const paidMonthHeader = document.getElementById('paidMonthHeader');
+
+        // --- UI Functions ---
+        function showToast(message, type = 'success') {
+            toast.textContent = message;
+            toast.className = `toast show ${type}`;
+            setTimeout(() => { toast.className = 'toast'; }, 3000);
+        }
+        function toggleModal(modal, show) {
+            modal.style.display = show ? 'flex' : 'none';
+        }
+        function formatCurrency(value) {
+            return value.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' });
+        }
+
+        // --- Date & Period Functions ---
+        const FULL_MONTH_NAMES = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
+        
+        function generatePayPeriods() {
+            const periods = [];
+            const today = new Date();
+            const currentYear = today.getFullYear();
+            for (let year = currentYear -1; year <= currentYear + 1; year++) {
+                FULL_MONTH_NAMES.forEach((month, index) => {
+                    periods.push(`1ra Quincena de ${month} ${year}`);
+                    periods.push(`2da Quincena de ${month} ${year}`);
+                });
+            }
+            const currentMonth = today.getMonth();
+            const currentDay = today.getDate();
+            const periodNumber = currentDay <= 15 ? '1ra' : '2da';
+            const currentPeriod = `${periodNumber} Quincena de ${FULL_MONTH_NAMES[currentMonth]} ${currentYear}`;
+            return { periods: periods.reverse(), currentPeriod };
+        }
+        
+        function populateMonthFilter() {
+            monthFilter.innerHTML = '<option value="current">Mes Actual</option>';
+            const today = new Date();
+            for (let i = 0; i < 12; i++) {
+                const date = new Date(today.getFullYear(), today.getMonth() - i, 1);
+                const year = date.getFullYear();
+                const month = date.getMonth();
+                const option = document.createElement('option');
+                option.value = `${year}-${month}`;
+                option.textContent = `${FULL_MONTH_NAMES[month]} ${year}`;
+                monthFilter.appendChild(option);
+            }
+        }
+        
+        // --- Dashboard & Chart Functions ---
+        function updateDashboard(employeesToDisplay, allEmployeesData) {
+            const now = new Date();
+            document.getElementById('totalEmployees').textContent = allEmployeesData.length;
+            const totalQuincenalPayrollAll = allEmployeesData.reduce((sum, emp) => sum + emp.salary, 0);
+            document.getElementById('projectedAnnualPayroll').textContent = formatCurrency(totalQuincenalPayrollAll * 24);
+            const { currentPeriod } = generatePayPeriods();
+            const paidThisQuincena = allEmployeesData.flatMap(e => e.payments).filter(p => p.period === currentPeriod).reduce((sum, p) => sum + p.amount, 0);
+            const pendingQuincena = totalQuincenalPayrollAll - paidThisQuincena;
+            document.getElementById('pendingQuincena').textContent = formatCurrency(Math.max(0, pendingQuincena));
+            const quincenaProgress = totalQuincenalPayrollAll > 0 ? (paidThisQuincena / totalQuincenalPayrollAll) * 100 : 0;
+            document.getElementById('quincenaProgressFill').style.width = `${quincenaProgress}%`;
+            document.getElementById('quincenaProgressText').textContent = `${Math.round(quincenaProgress)}%`;
+            document.getElementById('quincenaProgressDetails').textContent = `${formatCurrency(paidThisQuincena)} / ${formatCurrency(totalQuincenalPayrollAll)}`;
+            const [selectedYear, selectedMonth] = filters.month === 'current' ? [now.getFullYear(), now.getMonth()] : filters.month.split('-').map(Number);
+            const totalMonthlyPayrollForSelected = allEmployeesData.reduce((sum, emp) => sum + (emp.salary * 2), 0);
+            const paidInSelectedMonth = allEmployeesData.flatMap(e => e.payments).filter(p => p.paidAt && p.paidAt.getMonth() === selectedMonth && p.paidAt.getFullYear() === selectedYear).reduce((sum, p) => sum + p.amount, 0);
+            const monthlyProgress = totalMonthlyPayrollForSelected > 0 ? (paidInSelectedMonth / totalMonthlyPayrollForSelected) * 100 : 0;
+            document.getElementById('monthlyProgressFill').style.width = `${monthlyProgress}%`;
+            document.getElementById('monthlyProgressText').textContent = `${Math.round(monthlyProgress)}%`;
+            document.getElementById('monthlyProgressDetails').textContent = `${formatCurrency(paidInSelectedMonth)} / ${formatCurrency(totalMonthlyPayrollForSelected)}`;
+            const MONTH_NAMES = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
+            const monthlyTotals = new Array(6).fill(0);
+            const monthLabels = [];
+            for (let i = 5; i >= 0; i--) {
+                const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+                monthLabels.push(MONTH_NAMES[d.getMonth()]);
+            }
+            allEmployeesData.flatMap(e => e.payments).forEach(p => {
+                if(p.paidAt){
+                    const paymentDate = p.paidAt;
+                    const monthsAgo = (now.getFullYear() - paymentDate.getFullYear()) * 12 + (now.getMonth() - paymentDate.getMonth());
+                    if (monthsAgo >= 0 && monthsAgo < 6) { monthlyTotals[5 - monthsAgo] += p.amount; }
+                }
+            });
+            renderMonthlyChart(monthLabels, monthlyTotals);
+        }
+
+        function renderMonthlyChart(labels, data) {
+            const ctx = document.getElementById('monthlyPayrollChart').getContext('2d');
+            if (monthlyChart) { monthlyChart.destroy(); }
+            monthlyChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Nómina Pagada',
+                        data: data,
+                        backgroundColor: 'rgba(34, 211, 238, 0.6)',
+                        borderColor: 'rgba(34, 211, 238, 1)',
+                        borderWidth: 2,
+                        borderRadius: 8,
+                        hoverBackgroundColor: 'rgba(34, 211, 238, 0.8)',
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: { beginAtZero: true, ticks: { callback: value => formatCurrency(value) } },
+                        x: { grid: { display: false } }
+                    },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: { callbacks: { label: context => formatCurrency(context.raw) } }
+                    }
+                }
+            });
+        }
+        
+        // --- Table Rendering ---
+        function renderEmployeeTable(employees) {
+            employeeTableBody.innerHTML = '';
+            loader.style.display = 'none';
+            noEmployees.style.display = employees.length === 0 ? 'block' : 'none';
+            
+            const now = new Date();
+            const [year, month] = filters.month === 'current' ? [now.getFullYear(), now.getMonth()] : filters.month.split('-').map(Number);
+            paidMonthHeader.textContent = filters.month === 'current' ? `Pagado este Mes` : `Pagado en ${FULL_MONTH_NAMES[month]}`;
+
+            employees.forEach(employee => {
+                const totalAnnualSalary = employee.salary * 24;
+                const totalPaid = employee.payments.reduce((sum, p) => sum + p.amount, 0);
+                const progressPercentage = totalAnnualSalary > 0 ? (totalPaid / totalAnnualSalary) * 100 : 0;
+                const paidThisMonth = employee.payments
+                    .filter(p => p.paidAt && p.paidAt.getMonth() === month && p.paidAt.getFullYear() === year)
+                    .reduce((sum, p) => sum + p.amount, 0);
+
+                const row = document.createElement('tr');
+                row.className = 'bg-white border-b hover:bg-slate-50 transition-colors duration-200';
+                row.innerHTML = `
+                    <td class="px-6 py-4 font-medium text-gray-900 whitespace-nowrap">${employee.name}</td>
+                    <td class="px-6 py-4 text-gray-600">${employee.position}</td>
+                    <td class="px-6 py-4">${formatCurrency(employee.salary)}</td>
+                    <td class="px-6 py-4">${formatCurrency(paidThisMonth)}</td>
+                    <td class="px-6 py-4">
+                        <div class="w-full progress-bar-bg rounded-full h-2.5"><div class="bg-gradient-to-r from-cyan-400 to-blue-500 h-2.5 rounded-full" style="width: ${progressPercentage}%"></div></div>
+                        <span class="text-xs">${Math.round(progressPercentage)}%</span>
+                    </td>
+                    <td class="px-6 py-4 text-center">
+                        <div class="flex justify-center items-center gap-2">
+                            <button data-id="${employee.id}" class="log-payment-btn action-btn bg-blue-100 text-blue-700 hover:bg-blue-200">Pagar</button>
+                            <button data-id="${employee.id}" class="edit-employee-btn action-btn bg-amber-100 text-amber-700 hover:bg-amber-200">Editar</button>
+                            <button data-id="${employee.id}" class="view-history-btn action-btn bg-slate-100 text-slate-700 hover:bg-slate-200">Historial</button>
+                        </div>
+                    </td>
+                `;
+                employeeTableBody.appendChild(row);
+            });
+        }
+
+        function applyFiltersAndRender() {
+            let filteredEmployees = [...allEmployees];
+            if (filters.name) {
+                filteredEmployees = filteredEmployees.filter(emp => emp.name.toLowerCase().includes(filters.name.toLowerCase()));
+            }
+            renderEmployeeTable(filteredEmployees);
+            updateDashboard(filteredEmployees, allEmployees);
+        }
+
+        // --- Modal Opening Functions ---
+        function openPaymentModal(employee) {
+            document.getElementById('paymentEmployeeId').value = employee.id;
+            document.getElementById('paymentEmployeeName').textContent = employee.name;
+            document.getElementById('paymentAmount').value = employee.salary;
+
+            const periodSelect = document.getElementById('paymentPeriod');
+            periodSelect.innerHTML = '';
+            const { periods, currentPeriod } = generatePayPeriods();
+            periods.forEach(period => {
+                const option = document.createElement('option');
+                option.value = period;
+                option.textContent = period;
+                if (period === currentPeriod) { option.selected = true; }
+                periodSelect.appendChild(option);
+            });
+            toggleModal(paymentModal, true);
+        }
+
+        function openEmployeeModal(employee = null) {
+            employeeForm.reset();
+            const modalTitle = employeeModal.querySelector('h2');
+            const submitButton = employeeModal.querySelector('button[type="submit"]');
+            
+            if (employee) {
+                modalTitle.textContent = "Editar Empleado";
+                submitButton.textContent = "Actualizar";
+                document.getElementById('employeeId').value = employee.id;
+                document.getElementById('employeeName').value = employee.name;
+                document.getElementById('employeePosition').value = employee.position;
+                document.getElementById('employeeSalary').value = employee.salary;
+            } else {
+                modalTitle.textContent = "Registrar Empleado";
+                submitButton.textContent = "Guardar";
+                document.getElementById('employeeId').value = '';
+            }
+            toggleModal(employeeModal, true);
+        }
+
+        function openPaymentHistoryModal(employee) {
+            document.getElementById('historyEmployeeName').textContent = employee.name;
+            const historyBody = document.getElementById('paymentHistoryBody');
+            historyBody.innerHTML = '';
+            if (employee.payments.length === 0) {
+                historyBody.innerHTML = '<tr><td colspan="3" class="text-center py-4">No hay pagos registrados.</td></tr>';
+            } else {
+                employee.payments
+                    .sort((a, b) => (b.paidAt || 0) - (a.paidAt || 0))
+                    .forEach(p => {
+                        const row = document.createElement('tr');
+                        row.className = "border-b";
+                        row.innerHTML = `
+                            <td class="px-6 py-4">${p.period}</td>
+                            <td class="px-6 py-4">${formatCurrency(p.amount)}</td>
+                            <td class="px-6 py-4">
+                                <a href="${p.proofUrl}" target="_blank" rel="noopener noreferrer" class="font-medium text-cyan-600 hover:underline ${!p.proofUrl ? 'pointer-events-none text-gray-400' : ''}">
+                                    Ver Comprobante
+                                </a>
+                            </td>
+                        `;
+                        historyBody.appendChild(row);
+                    });
+            }
+            toggleModal(paymentHistoryModal, true);
+        }
+
+        // --- Main Logic & Event Handlers ---
+        async function main() {
+            populateMonthFilter();
+            try {
+                app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                auth = getAuth(app);
+                storage = getStorage(app);
+            } catch (e) { console.error("Error initializing Firebase:", e); showToast("Error al conectar con los servicios.", 'error'); return; }
+
+            onAuthStateChanged(auth, user => { if (user) { userId = user.uid; listenForEmployees(); } });
+            try {
+                 if (initialAuthToken) { await signInWithCustomToken(auth, initialAuthToken); } 
+                 else { await signInAnonymously(auth); }
+            } catch (error) { console.error("Authentication failed:", error); showToast("Fallo en la autenticación.", 'error'); }
+        }
+
+        function listenForEmployees() {
+            if (!userId) return;
+            const employeesColRef = collection(db, `/artifacts/${appId}/users/${userId}/employees`);
+            onSnapshot(query(employeesColRef), async (querySnapshot) => {
+                const employeePromises = querySnapshot.docs.map(async (docSnapshot) => {
+                    const employeeData = { id: docSnapshot.id, ...docSnapshot.data() };
+                    const paymentsColRef = collection(db, `/artifacts/${appId}/users/${userId}/employees/${docSnapshot.id}/payments`);
+                    const paymentsSnapshot = await getDocs(paymentsColRef);
+                    employeeData.payments = paymentsSnapshot.docs.map(doc => {
+                        const payment = doc.data();
+                        return { id: doc.id, ...payment, paidAt: payment.paidAt?.toDate() };
+                    });
+                    return employeeData;
+                });
+
+                allEmployees = await Promise.all(employeePromises);
+                allEmployees.sort((a,b) => a.name.localeCompare(b.name));
+                applyFiltersAndRender();
+            }, (error) => {
+                console.error("Error fetching employees:", error);
+                showToast("Error al cargar los empleados.", 'error');
+                loader.style.display = 'none';
+            });
+        }
+        
+        // --- Global Event Listeners ---
+        addEmployeeBtn.addEventListener('click', () => openEmployeeModal());
+
+        document.querySelectorAll('.cancel-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => toggleModal(e.target.closest('.modal-backdrop'), false));
+        });
+
+        employeeTableBody.addEventListener('click', (e) => {
+            const button = e.target.closest('button');
+            if (!button) return;
+            const employeeId = button.dataset.id;
+            const employee = allEmployees.find(emp => emp.id === employeeId);
+            if (!employee) return;
+
+            if (button.classList.contains('log-payment-btn')) { openPaymentModal(employee); }
+            if (button.classList.contains('edit-employee-btn')) { openEmployeeModal(employee); }
+            if (button.classList.contains('view-history-btn')) { openPaymentHistoryModal(employee); }
+        });
+
+        nameFilter.addEventListener('input', (e) => { filters.name = e.target.value; applyFiltersAndRender(); });
+        monthFilter.addEventListener('change', (e) => { filters.month = e.target.value; applyFiltersAndRender(); });
+        
+        employeeForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const id = document.getElementById('employeeId').value;
+            const name = document.getElementById('employeeName').value.trim();
+            const position = document.getElementById('employeePosition').value.trim();
+            const salary = parseFloat(document.getElementById('employeeSalary').value);
+
+            if (!name || !position || isNaN(salary) || salary <= 0) { showToast("Por favor, introduce datos válidos.", 'error'); return; }
+            
+            const employeeData = { name, position, salary };
+            
+            try {
+                if (id) {
+                    const employeeRef = doc(db, `/artifacts/${appId}/users/${userId}/employees`, id);
+                    await updateDoc(employeeRef, employeeData);
+                    showToast("Empleado actualizado con éxito.");
+                } else {
+                    employeeData.createdAt = serverTimestamp();
+                    await addDoc(collection(db, `/artifacts/${appId}/users/${userId}/employees`), employeeData);
+                    showToast("Empleado registrado con éxito.");
+                }
+                employeeForm.reset();
+                toggleModal(employeeModal, false);
+            } catch (error) { console.error("Error saving employee: ", error); showToast("Error al guardar el empleado.", 'error'); }
+        });
+
+        paymentForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const submitBtn = document.getElementById('submitPaymentBtn');
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Procesando...';
+
+            const employeeId = document.getElementById('paymentEmployeeId').value;
+            const period = document.getElementById('paymentPeriod').value;
+            const amount = parseFloat(document.getElementById('paymentAmount').value);
+            const proofFile = document.getElementById('paymentProof').files[0];
+
+            if (!employeeId || !period || isNaN(amount) || amount <= 0 || !proofFile) {
+                showToast("Todos los campos son obligatorios.", 'error');
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Registrar Pago';
+                return;
+            }
+
+            try {
+                const filePath = `artifacts/${appId}/public/data/proofs/${userId}/${employeeId}/${Date.now()}-${proofFile.name}`;
+                const storageRef = ref(storage, filePath);
+                await uploadBytes(storageRef, proofFile);
+                const proofUrl = await getDownloadURL(storageRef);
+                
+                await addDoc(collection(db, `/artifacts/${appId}/users/${userId}/employees/${employeeId}/payments`), {
+                    period,
+                    amount,
+                    proofFileName: proofFile.name,
+                    proofUrl,
+                    paidAt: serverTimestamp()
+                });
+                
+                // FIX: Manually refresh data for the specific employee to ensure UI updates instantly
+                const updatedEmployeeIndex = allEmployees.findIndex(emp => emp.id === employeeId);
+                if (updatedEmployeeIndex > -1) {
+                    const paymentsColRef = collection(db, `/artifacts/${appId}/users/${userId}/employees/${employeeId}/payments`);
+                    const paymentsSnapshot = await getDocs(paymentsColRef);
+                    allEmployees[updatedEmployeeIndex].payments = paymentsSnapshot.docs.map(doc => {
+                        const payment = doc.data();
+                        return { id: doc.id, ...payment, paidAt: payment.paidAt?.toDate() };
+                    });
+                    applyFiltersAndRender();
+                }
+
+                showToast("Pago registrado con éxito.");
+                paymentForm.reset();
+                toggleModal(paymentModal, false);
+            } catch (error) {
+                console.error("Error adding payment: ", error);
+                showToast("Error al registrar el pago.", 'error');
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Registrar Pago';
+            }
+        });
+
+        main();
+
+    </script>
+</body>
+</html>
